@@ -154,6 +154,56 @@ def load_patches_from_txt(patch_file: Path | str) -> List[List[str]]:
     return patches
 
 
+def format_patch(patch: List[str], patch_index: int) -> str:
+    """Format a single patch with header and data rows."""
+    header = f"===== Patch {patch_index} =====\n"
+    data = "\n".join(patch)
+    return header + data
+
+
+def extract_single_patch_from_response(response: str, patch_index: int) -> str:
+    """Extract a single patch from model response string.
+    
+    Args:
+        response: Model response string containing patch data
+        patch_index: Expected patch index to extract
+    
+    Returns:
+        String containing the extracted patch with header
+    """
+    lines = response.splitlines()
+    patch_lines: List[str] = []
+    in_target_patch = False
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            if in_target_patch:
+                # End of patch
+                break
+            continue
+        
+        if line.startswith("===== Patch") and line.endswith("====="):
+            # Extract index from header
+            try:
+                # Format: "===== Patch {index} ====="
+                parts = line.split()
+                if len(parts) >= 3:
+                    idx = int(parts[2])
+                    if idx == patch_index:
+                        in_target_patch = True
+                        patch_lines.append(line)
+                    elif in_target_patch:
+                        # Next patch found, stop
+                        break
+            except (ValueError, IndexError):
+                continue
+        elif in_target_patch:
+            patch_lines.append(line)
+    
+    return "\n".join(patch_lines)
+
+
 def patches_string_to_dict_array(patches_string: str) -> List[Dict[str, str]]:
     """Convert a string containing multiple patches into a single array of dictionaries.
     

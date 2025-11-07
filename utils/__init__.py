@@ -6,9 +6,13 @@ from utils.patches import (  # noqa: F401
     generate_all_patches,
     write_patches_to_txt,
     load_patches_from_txt,
+    format_patch,
+    extract_single_patch_from_response,
     patches_string_to_dict_array,
 )
 from utils.prompt import (  # noqa: F401
+    create_m2n_prompt,
+    create_m2n_prompt_with_feedback,
     save_forecast_prompt,
 )
 from utils.dataset import (  # noqa: F401
@@ -24,7 +28,11 @@ __all__ = [
     "generate_all_patches",
     "write_patches_to_txt",
     "load_patches_from_txt",
+    "format_patch",
+    "extract_single_patch_from_response",
     "patches_string_to_dict_array",
+    "create_m2n_prompt",
+    "create_m2n_prompt_with_feedback",
     "save_forecast_prompt",
     "find_dataset_files",
     "extract_symbol_from_filename",
