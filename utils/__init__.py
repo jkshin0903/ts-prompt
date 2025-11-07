@@ -6,6 +6,7 @@ from utils.patches import (  # noqa: F401
     generate_all_patches,
     write_patches_to_txt,
     load_patches_from_txt,
+    patches_string_to_dict_array,
 )
 from utils.prompt import (  # noqa: F401
     save_forecast_prompt,
@@ -23,6 +24,7 @@ __all__ = [
     "generate_all_patches",
     "write_patches_to_txt",
     "load_patches_from_txt",
+    "patches_string_to_dict_array",
     "save_forecast_prompt",
     "find_dataset_files",
     "extract_symbol_from_filename",

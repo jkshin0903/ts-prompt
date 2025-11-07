@@ -30,7 +30,7 @@
 │  ├─ run_forecast.sh       # main.py 실행 래퍼(프로젝트 루트에서 실행)
 │  └─ example.sh            # 예시(타 프레임워크 용도, 이 프로젝트 직접 실행과 무관)
 └─ src/
-   ├─ n2m_forcasting.py      # 프롬프트 생성 유틸
+   ├─ many2many.py          # 프롬프트 생성 유틸
    └─ main.py               # 패치 로드→프롬프트 생성→LLM 호출→응답 저장
 ```
 
@@ -44,7 +44,7 @@
   - CLI 인자: `--split {train|test}`, `--patch_size`, `--stride`, `--base_dir`, `--out_dir`.
   - 결과는 `patches/{split}/{SYMBOL}_patches.txt`에 저장. 각 패치는 "===== Patch i =====" 헤더 + OHLC 문자열 행으로 구성.
 
-- `src/n2m_forcasting.py`
+- `src/many2many.py`
   - 패치 리스트를 입력 받아 예측용 프롬프트를 생성.
   - `start_index`가 없으면 기본적으로 "마지막 M개" 패치를 입력으로 사용(최신 구간 예측 시나리오). 비교를 위해 처음부터 사용하려면 `--start_index 0`을 지정.
   - `load_patches_from_txt()`로 `*_patches.txt`를 다시 메모리로 로드 가능.

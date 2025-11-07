@@ -154,6 +154,58 @@ def load_patches_from_txt(patch_file: Path | str) -> List[List[str]]:
     return patches
 
 
+def patches_string_to_dict_array(patches_string: str) -> List[Dict[str, str]]:
+    """Convert a string containing multiple patches into a single array of dictionaries.
+    
+    Parses patch data from a string format (e.g., from LLM response) and converts it
+    into a list of dictionaries with keys: "Date", "Open", "High", "Low", "Close".
+    
+    Args:
+        patches_string: String containing patch data in the format:
+            ===== Patch {index} =====
+            {date},{open},{high},{low},{close}
+            ...
+    
+    Returns:
+        List of dictionaries, each with keys "Date", "Open", "High", "Low", "Close"
+        in that order. All values are strings.
+    
+    Example:
+        >>> patches_str = '''===== Patch 0 =====
+        ... 2024-01-01,100,110,95,105
+        ... 2024-01-02,105,115,100,110'''
+        >>> result = patches_string_to_dict_array(patches_str)
+        >>> result[0]
+        {'Date': '2024-01-01', 'Open': '100', 'High': '110', 'Low': '95', 'Close': '105'}
+    """
+    result: List[Dict[str, str]] = []
+    
+    for line in patches_string.splitlines():
+        line = line.strip()
+        
+        # Skip empty lines and patch headers
+        if not line or (line.startswith("===== Patch") and line.endswith("=====")):
+            continue
+        
+        # Parse data row: date,open,high,low,close
+        parts = line.split(",")
+        if len(parts) != 5:
+            # Skip malformed lines
+            continue
+        
+        date, open_val, high, low, close = [part.strip() for part in parts]
+        
+        result.append({
+            "Date": date,
+            "Open": open_val,
+            "High": high,
+            "Low": low,
+            "Close": close,
+        })
+    
+    return result
+
+
 if __name__ == "__main__":
     import argparse
 
