@@ -14,8 +14,6 @@ DATASET_TYPE=ADAUSDT
 SPLIT=train
 # Get model name from command line argument, default to gpt-4.1-mini-2025-04-14
 MODEL=gpt-4.1-mini-2025-04-14
-# Get language from command line argument, default to kr
-LANGUAGE=kr
 
 # Set paths
 PATCH_FILE="patches/${SPLIT}/${DATASET_TYPE}_patches.txt"
@@ -28,7 +26,6 @@ echo "Running forecast for:"
 echo "  Dataset: $DATASET_TYPE"
 echo "  Split: $SPLIT"
 echo "  Model: $MODEL"
-echo "  Language: $LANGUAGE"
 echo "=========================================="
 
 # Run with num_input=3, num_predict=1
@@ -37,7 +34,6 @@ python -u src/main.py \
   --num_input 3 \
   --num_predict 1 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_3_1" \
   --save_prompt
@@ -48,7 +44,6 @@ python -u src/main.py \
   --num_input 3 \
   --num_predict 2 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_3_2" \
   --save_prompt
@@ -59,7 +54,6 @@ python -u src/main.py \
   --num_input 3 \
   --num_predict 3 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_3_3" \
   --save_prompt
@@ -70,7 +64,6 @@ python -u src/main.py \
   --num_input 5 \
   --num_predict 1 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_5_1" \
   --save_prompt
@@ -81,7 +74,6 @@ python -u src/main.py \
   --num_input 5 \
   --num_predict 2 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_5_2" \
   --save_prompt
@@ -92,12 +84,11 @@ python -u src/main.py \
   --num_input 5 \
   --num_predict 3 \
   --start_index 0 \
-  --language "$LANGUAGE" \
   --model "$MODEL" \
   --output_dir "${OUTPUT_DIR}_5_3" \
   --save_prompt
 
 echo "=========================================="
-echo "Completed forecast runs for $DATASET_TYPE ($SPLIT, $MODEL, $LANGUAGE)"
+echo "Completed forecast runs for $DATASET_TYPE ($SPLIT, $MODEL)"
 echo "=========================================="
 

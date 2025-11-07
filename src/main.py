@@ -11,8 +11,7 @@ from dotenv import load_dotenv
 # Use local imports so this file can run as a script
 from extract_patches import extract_patches_from_csv
 from instruct_forcasting import (
-    create_forecast_prompt_kr,
-    create_forecast_prompt_en,
+    create_forecast_prompt,
     load_patches_from_txt,
 )
 
@@ -99,12 +98,6 @@ def main():
         type=int,
         default=None,
         help="Starting patch index. If not specified, uses the last N patches",
-    )
-    parser.add_argument(
-        "--language",
-        choices=["kr", "en"],
-        default="kr",
-        help="Language for prompt generation (default: kr)",
     )
     parser.add_argument(
         "--patch_size",
@@ -214,22 +207,14 @@ def main():
     print("-" * 80)
 
     # Generate prompt
-    print(f"Generating {args.language} prompt...")
+    print("Generating prompt...")
     try:
-        if args.language == "kr":
-            prompt = create_forecast_prompt_kr(
-                all_patches=patches,
-                num_input_patches=args.num_input,
-                num_predictions=args.num_predict,
-                start_index=args.start_index,
-            )
-        else:
-            prompt = create_forecast_prompt_en(
-                all_patches=patches,
-                num_input_patches=args.num_input,
-                num_predictions=args.num_predict,
-                start_index=args.start_index,
-            )
+        prompt = create_forecast_prompt(
+            all_patches=patches,
+            num_input_patches=args.num_input,
+            num_predictions=args.num_predict,
+            start_index=args.start_index,
+        )
         print(f"Prompt generated ({len(prompt)} characters)")
     except Exception as e:
         print(f"Error generating prompt: {e}")
@@ -276,17 +261,17 @@ def main():
         
         # Save response (sanitize model name for filename)
         model_safe = args.model.replace("-", "_").replace(".", "_")
-        response_file = output_dir / f"{file_stem}_response_{model_safe}_{args.language}.txt"
+        response_file = output_dir / f"{file_stem}_response_{model_safe}.txt"
         response_file.write_text(response, encoding="utf-8")
         print(f"\nSaved response to: {response_file}")
 
         # Save prompt if requested
         if args.save_prompt:
-            prompt_file = output_dir / f"{file_stem}_prompt_{args.language}.txt"
+            prompt_file = output_dir / f"{file_stem}_prompt.txt"
             prompt_file.write_text(prompt, encoding="utf-8")
             print(f"Saved prompt to: {prompt_file}")
 
 
 if __name__ == "__main__":
     main()
-
+    

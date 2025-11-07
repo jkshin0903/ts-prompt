@@ -20,8 +20,7 @@
 │  ├─ train/                # 훈련 패치 텍스트 ({SYMBOL}_patches.txt)
 │  └─ test/                 # 테스트 패치 텍스트 ({SYMBOL}_patches.txt)
 ├─ prompts/
-│  ├─ patch_structure_kr.txt  # 패치 구조(한국어)
-│  └─ patch_structure_en.txt  # 패치 구조(영문)
+│  └─ patch_structure.txt    # 패치 구조 설명
 ├─ responses/               # LLM 응답 및 사용된 프롬프트 저장 위치(실행 시 생성)
 ├─ scripts/
 │  ├─ run_forecast.sh       # main.py 실행 래퍼(프로젝트 루트에서 실행)
@@ -29,7 +28,7 @@
 └─ src/
    ├─ split_dataset.py      # original → (train/test) CSV 분리
    ├─ extract_patches.py    # CSV → 패치 생성 및 텍스트 저장 CLI
-   ├─ instruct_forcasting.py# 프롬프트 생성 유틸(kr/en), 패치 로더
+   ├─ instruct_forcasting.py# 프롬프트 생성 유틸, 패치 로더
    └─ main.py               # 패치 로드→프롬프트 생성→LLM 호출→응답 저장
 ```
 
@@ -44,7 +43,7 @@
   - 결과는 `patches/{split}/{SYMBOL}_patches.txt`에 저장. 각 패치는 "===== Patch i =====" 헤더 + OHLC 문자열 행으로 구성.
 
 - `src/instruct_forcasting.py`
-  - 패치 리스트를 입력 받아 예측용 프롬프트(kr/en)를 생성.
+  - 패치 리스트를 입력 받아 예측용 프롬프트를 생성.
   - `start_index`가 없으면 기본적으로 "마지막 M개" 패치를 입력으로 사용(최신 구간 예측 시나리오). 비교를 위해 처음부터 사용하려면 `--start_index 0`을 지정.
   - `load_patches_from_txt()`로 `*_patches.txt`를 다시 메모리로 로드 가능.
 
@@ -52,7 +51,7 @@
   - 패치 로드(텍스트 또는 CSV) → 프롬프트 생성 → LLM 호출 → 응답/프롬프트 저장까지 수행.
   - 인자(일부):
     - 입력 소스: `--patch_file` 또는 `--csv` (상대경로는 프로젝트 루트 기준)
-    - 프롬프트: `--num_input`, `--num_predict`, `--start_index`, `--language {kr|en}`
+    - 프롬프트: `--num_input`, `--num_predict`, `--start_index`
     - 모델: `--model` (예: `gpt-4.1-mini-2025-04-14`, `gemini-2.0-flash`) — 모델명만으로 타입 자동 판별
     - 실행: `--temperature`, `--output_dir`, `--save_prompt`, `--restrict_to_prompt`
   - `--restrict_to_prompt` 사용 시 시스템 메시지로 외부 지식 사용 금지 지시를 추가.
@@ -80,14 +79,13 @@ python src/extract_patches.py --split train --patch_size 16 --stride 1
 python src/main.py \
   --patch_file patches/train/ADAUSDT_patches.txt \
   --num_input 3 --num_predict 2 --start_index 0 \
-  --language kr \
   --model gpt-4.1-mini-2025-04-14 \
   --output_dir responses/train/gpt_4_1_mini_2025_04_14 --save_prompt
 ```
 
 2) 배치 실행(scripts/run_forecast.sh)
 ```bash
-# 스크립트 내부 기본값(DATASET_TYPE/SPLIT/MODEL/LANGUAGE)을 조정 후 실행
+# 스크립트 내부 기본값(DATASET_TYPE/SPLIT/MODEL)을 조정 후 실행
 ./scripts/run_forecast.sh
 ```
 - 자동으로 여러 조합(num_input/num_predict)을 실행하고 `responses/`에 저장합니다.
