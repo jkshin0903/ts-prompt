@@ -1,0 +1,27 @@
+The following is cryptocurrency price data divided into patches. Based on the {m} patches provided below, please predict the price information for the next {n} patches and write them in the same format.
+
+Each patch is structured consecutively in date order, and the predicted patches should start from the day after the last date in the input patches.
+
+Input patches:
+{input_patches}
+
+**IMPORTANT**: Based on the input patches above, please predict the next {n} patches.
+
+**Response Format Rules**:
+1. Output ONLY the predicted patch data without any explanations, comments, or additional text.
+2. Each patch must follow this exact format:
+   - Patch header: "===== Patch {{index}} =====" (indices start from the index after the last input patch index)
+   - Data rows: Each row in format "date,open,high,low,close"
+   - Patch separator: Blank line between patches
+
+3. Example response format (output exactly like this):
+===== Patch {{start_index}} =====
+{{date1}},{{open1}},{{high1}},{{low1}},{{close1}}
+{{date2}},{{open2}},{{high2}},{{low2}},{{close2}}
+...
+
+===== Patch {{next_index}} =====
+...
+
+**WARNING**: Do not include any explanations, comments, or additional text in your response. Output ONLY the patch data in the format above.
+

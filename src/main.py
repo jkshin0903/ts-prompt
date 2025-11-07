@@ -9,11 +9,8 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from dotenv import load_dotenv
 
 # Use local imports so this file can run as a script
-from extract_patches import extract_patches_from_csv
-from instruct_forcasting import (
-    create_forecast_prompt,
-    load_patches_from_txt,
-)
+from n2m_forcasting import create_forecast_prompt
+from utils.patches import extract_patches_from_csv, load_patches_from_txt
 
 load_dotenv()
 
