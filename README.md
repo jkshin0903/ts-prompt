@@ -1,9 +1,9 @@
 # ts-prompt
 
-간단한 시계열 패치 생성·예측 파이프라인. 암호화폐(또는 일반 시계열) 일별 OHLC 데이터를 패치 단위로 생성하고, LLM(GPT/Gemini)에 프롬프트로 전달하여 다음 패치들을 예측합니다.
+LLM을 활용한 시계열 데이터 예측 파이프라인. CSV 형식의 시계열 데이터를 행(row) 단위로 처리하여 LLM(GPT/Gemini)에 프롬프트로 전달하고, 다음 시계열 값을 예측합니다.
 
 ## 권장 환경
-- Python 3.11 (LangChain/Pydantic 호환 이슈로 3.14 비권장)
+- Python 3.11+ (LangChain/Pydantic 호환 이슈로 3.14 비권장)
 - 패키지 설치: `pip install -r requirements.txt`
 - API 키(환경변수):
   - GPT(OpenAI): `OPENAI_API_KEY`
@@ -12,103 +12,141 @@
 ## 프로젝트 구조
 ```
 ./
-├─ dataset/
-│  ├─ original/             # 원본 CSV (Binance_{SYMBOL}_d.csv)
-│  ├─ train/                # 분리된 훈련 CSV ({SYMBOL}.csv)
-│  └─ test/                 # 분리된 테스트 CSV ({SYMBOL}.csv)
-├─ patches/
-│  ├─ train/                # 훈련 패치 텍스트 ({SYMBOL}_patches.txt)
-│  └─ test/                 # 테스트 패치 텍스트 ({SYMBOL}_patches.txt)
+├─ dataset/                    # 시계열 데이터셋 (CSV 파일)
+│  ├─ ETT-small/              # ETT 벤치마크 데이터셋
+│  └─ ...                     # 기타 데이터셋
 ├─ templates/
-│  └─ patch_structure.txt    # 패치 구조 설명
+│  └─ instruction_m2n.txt     # M2N 예측 프롬프트 템플릿
 ├─ utils/
-│  ├─ dataset.py            # original → (train/test) CSV 분리
-│  ├─ patches.py            # CSV → 패치 생성 및 텍스트 저장/로드 CLI
-│  └─ prompt.py             # 프롬프트 저장 유틸
-├─ responses/               # LLM 응답 및 사용된 프롬프트 저장 위치(실행 시 생성)
+│  ├─ dataset.py              # CSV 파일 처리 및 정렬
+│  ├─ rows.py                 # 행 단위 데이터 로드/파싱 유틸
+│  └─ prompt.py               # 프롬프트 생성 및 저장
+├─ responses/                 # LLM 응답 및 메트릭 저장 위치
 ├─ scripts/
-│  ├─ run_forecast.sh       # main.py 실행 래퍼(프로젝트 루트에서 실행)
-│  └─ example.sh            # 예시(타 프레임워크 용도, 이 프로젝트 직접 실행과 무관)
+│  ├─ run_forecast_m2n.sh    # M2N 예측 실행 스크립트
+│  └─ evaluate_m2n.sh         # 예측 결과 평가 스크립트
 └─ src/
-   └─ main.py               # 패치 로드→프롬프트 생성→LLM 호출→응답 저장
+   ├─ forecast_m2n.py         # M2N 예측 실행 로직
+   └─ evaluate_m2n.py         # MSE/MAE 평가 로직
 ```
 
 ## 주요 모듈 요약
-- `utils/dataset.py`
-  - 원본 CSV(`dataset/original`)를 Date 오름차순 정렬 후 7:3 비율로 `dataset/train`, `dataset/test`로 분리.
-  - 원본 헤더가 2번째 줄부터 시작하는 포맷을 지원(`header=1`).
 
-- `utils/patches.py`
-  - CSV의 `Date,Open,High,Low,Close`를 사용해 슬라이딩 윈도우 패치를 생성.
-  - CLI 인자: `--split {train|test}`, `--patch_size`, `--stride`, `--base_dir`, `--out_dir`.
-  - 결과는 `patches/{split}/{SYMBOL}_patches.txt`에 저장. 각 패치는 "===== Patch i =====" 헤더 + OHLC 문자열 행으로 구성.
+### `utils/rows.py`
+- CSV 파일에서 시계열 행 데이터를 로드
+- 날짜/타임스탬프 컬럼 자동 감지
+- 행 데이터 파싱 및 포맷팅
 
-- `src/main.py`
-  - 패치 로드(텍스트 또는 CSV) → 프롬프트 생성 → LLM 호출 → 응답/프롬프트 저장까지 수행.
-  - 인자(일부):
-    - 입력 소스: `--patch_file` 또는 `--csv` (상대경로는 프로젝트 루트 기준)
-    - 프롬프트: `--num_input`, `--num_predict`, `--start_index`
-    - 모델: `--model` (예: `gpt-4.1-mini-2025-04-14`, `gemini-2.0-flash`) — 모델명만으로 타입 자동 판별
-    - 실행: `--temperature`, `--output_dir`, `--save_prompt`, `--restrict_to_prompt`
-  - `--restrict_to_prompt` 사용 시 시스템 메시지로 외부 지식 사용 금지 지시를 추가.
+### `utils/prompt.py`
+- M2N 예측 프롬프트 생성 (`create_m2n_prompt`)
+- 입력 행 M개를 기반으로 다음 N개 행 예측 요청
 
-## 데이터 준비
-1) 원본 CSV 배치
-- `dataset/original/Binance_{SYMBOL}_d.csv` 형식으로 배치
+### `src/forecast_m2n.py`
+- CSV 파일에서 행 데이터 로드
+- 프롬프트 생성 및 LLM 호출
+- 응답 및 프롬프트 저장
 
-2) 학습/테스트 분리
+### `src/evaluate_m2n.py`
+- 예측 결과와 실제 값 비교
+- MSE(Mean Squared Error) 및 MAE(Mean Absolute Error) 계산
+- 메트릭을 JSON 형식으로 저장
+
+## 사용 방법
+
+### 1. 예측 실행
+
 ```bash
-python utils/dataset.py
-```
-- `dataset/train/{SYMBOL}.csv`, `dataset/test/{SYMBOL}.csv` 생성
+# 기본 사용법
+./scripts/run_forecast_m2n.sh <csv_file> [model_name]
 
-3) 패치 생성(텍스트)
-```bash
-# 예: train split, patch_size=16, stride=1, 출력은 patches/train/
-python utils/patches.py --split train --patch_size 16 --stride 1
+# 예시
+./scripts/run_forecast_m2n.sh dataset/ETT-small/ETTh1.csv gpt-4.1-mini-2025-04-14
 ```
 
-## 예측 실행(LLM)
-1) 단건 실행(main.py)
+스크립트는 여러 조합(num_input/num_predict)으로 자동 실행합니다:
+- 24/24, 36/36, 48/48, 60/60, 72/72, 84/84, 96/96
+
+결과는 `responses/{dataset_name}/{model_dir}_{num_input}_{num_predict}/`에 저장됩니다.
+
+### 2. 평가 실행
+
 ```bash
-# 패치 텍스트로부터 입력 M=3, 다음 N=2 예측 (처음 패치부터 시작)
-python src/main.py \
-  --patch_file patches/train/ADAUSDT_patches.txt \
-  --num_input 3 --num_predict 2 --start_index 0 \
+# 기본 사용법
+./scripts/evaluate_m2n.sh <csv_file> [model_name]
+
+# 예시
+./scripts/evaluate_m2n.sh dataset/ETT-small/ETTh1.csv gpt-4.1-mini-2025-04-14
+```
+
+스크립트는 예측 결과를 자동으로 찾아 평가하고, 메트릭을 `metrics.json`에 저장합니다.
+응답 파일이 없으면 자동으로 예측을 실행합니다.
+
+### 3. 직접 Python 스크립트 실행
+
+```bash
+# 예측 실행
+python src/forecast_m2n.py \
+  --csv dataset/ETT-small/ETTh1.csv \
+  --num_input 30 \
+  --num_predict 30 \
   --model gpt-4.1-mini-2025-04-14 \
-  --output_dir responses/train/gpt_4_1_mini_2025_04_14 --save_prompt
+  --start_index 0 \
+  --output_dir responses/ETTh1/test
+
+# 평가 실행
+python src/evaluate_m2n.py \
+  --csv dataset/ETT-small/ETTh1.csv \
+  --num_input 30 \
+  --num_predict 30 \
+  --model gpt-4.1-mini-2025-04-14 \
+  --start_index 0 \
+  --auto_response
 ```
 
-2) 배치 실행(scripts/run_forecast.sh)
-```bash
-# 스크립트 내부 기본값(DATASET_TYPE/SPLIT/MODEL)을 조정 후 실행
-./scripts/run_forecast.sh
-```
-- 자동으로 여러 조합(num_input/num_predict)을 실행하고 `responses/`에 저장합니다.
-- 스크립트는 프로젝트 루트에서 실행되도록 `cd` 처리되어 있습니다.
+## 데이터 형식
 
-## 패치 파일 형식
-- 파일: `patches/{split}/{SYMBOL}_patches.txt`
+### CSV 파일 요구사항
+- 첫 번째 컬럼: 날짜/타임스탬프 (컬럼명: `date`, `Date`, `time`, `timestamp` 등)
+- 나머지 컬럼: 숫자형 특징 값들
 - 예시:
-```
-===== Patch 0 =====
-YYYY-MM-DD,Open,High,Low,Close
-...
+  ```csv
+  date,feature1,feature2,feature3
+  2020-01-01,1.5,2.3,3.1
+  2020-01-02,1.6,2.4,3.2
+  ```
 
-===== Patch 1 =====
+### 응답 형식
+LLM은 다음 형식으로 응답해야 합니다:
+```
+2020-01-03,1.7,2.5,3.3
+2020-01-04,1.8,2.6,3.4
 ...
+```
+
+## 출력 파일 구조
+
+```
+responses/
+└─ {dataset_name}/
+   └─ {model_name}_{num_input}_{num_predict}/
+      ├─ {dataset_name}_prompt.txt          # 사용된 프롬프트
+      ├─ {dataset_name}_response_{model}.txt # LLM 응답
+      └─ metrics.json                        # 평가 메트릭 (MSE, MAE)
 ```
 
 ## 자주 묻는 질문(FAQ)
-- 왜 기본으로 마지막 M개 패치를 입력으로 쓰나요?
-  - 최신 구간을 기준으로 다음 패치를 예측하는 일반 워크플로를 반영한 기본값입니다. 초기부터 비교가 필요하면 `--start_index 0`을 지정하세요.
 
-- `ModuleNotFoundError: No module named 'src'`?
-  - `src/main.py`는 로컬 임포트를 사용합니다. 프로젝트 루트에서 `python src/main.py ...`로 실행하거나, `scripts/run_forecast.sh`를 사용하세요.
+- **왜 행(row) 단위로 처리하나요?**
+  - Patch 단위 예측이 모델에 부담을 주어 행 단위로 전환했습니다. 각 행은 하나의 시점을 나타냅니다.
 
-- Python 3.14에서 Pydantic V1 경고가 나옵니다.
+- **`ModuleNotFoundError: No module named 'src'`?**
+  - 프로젝트 루트에서 스크립트를 실행하세요. 쉘 스크립트는 자동으로 프로젝트 루트로 이동합니다.
+
+- **Python 3.14에서 Pydantic V1 경고가 나옵니다.**
   - LangChain/Pydantic 호환 이슈입니다. Python 3.11 사용을 권장합니다.
+
+- **어떤 데이터셋을 사용할 수 있나요?**
+  - 날짜/타임스탬프 컬럼과 숫자형 특징 컬럼을 가진 모든 CSV 파일을 사용할 수 있습니다. ETT-small, M4 등 벤치마크 데이터셋을 지원합니다.
 
 ## 라이선스
 - 프로젝트 루트의 LICENSE(있는 경우)를 참조하세요.
-
