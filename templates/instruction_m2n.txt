@@ -1,27 +1,25 @@
-The following is cryptocurrency price data divided into patches. Based on the {m} patches provided below, please predict the price information for the next {n} patches and write them in the same format.
+The following is time series data. Based on the {m} rows provided below, please predict the time series information for the next {n} rows and write them in the same format.
 
-Each patch is structured consecutively in date order, and the predicted patches should start from the day after the last date in the input patches.
+The data is structured consecutively in chronological order (by date/timestamp), and the predicted rows should start from the time point immediately after the last date/timestamp in the input rows.
 
-Input patches:
-{input_patches}
+Input rows:
+{input_rows}
 
-**IMPORTANT**: Based on the input patches above, please predict the next {n} patches.
+**IMPORTANT**: Based on the input rows above, please predict the next {n} rows.
 
 **Response Format Rules**:
-1. Output ONLY the predicted patch data without any explanations, comments, or additional text.
-2. Each patch must follow this exact format:
-   - Patch header: "===== Patch {{index}} =====" (indices start from the index after the last input patch index)
-   - Data rows: Each row in format "date,open,high,low,close"
-   - Patch separator: Blank line between patches
+1. Output ONLY the predicted row data without any explanations, comments, or additional text.
+2. Each row must follow this exact format:
+   - Data row: "{{date/timestamp}},{{feature1}},{{feature2}},{{feature3}},..."
+     * The first column is date/timestamp (required)
+     * The remaining columns are numeric feature values (same number and order as input rows)
+   - One row per line
 
 3. Example response format (output exactly like this):
-===== Patch {{start_index}} =====
-{{date1}},{{open1}},{{high1}},{{low1}},{{close1}}
-{{date2}},{{open2}},{{high2}},{{low2}},{{close2}}
+{{date1}},{{feature1_1}},{{feature2_1}},{{feature3_1}},...
+{{date2}},{{feature1_2}},{{feature2_2}},{{feature3_2}},...
+{{date3}},{{feature1_3}},{{feature2_3}},{{feature3_3}},...
 ...
 
-===== Patch {{next_index}} =====
-...
-
-**WARNING**: Do not include any explanations, comments, or additional text in your response. Output ONLY the patch data in the format above.
+**WARNING**: Do not include any explanations, comments, or additional text in your response. Output ONLY the row data in the format above. The number of feature columns in your prediction must match the number of feature columns in the input rows.
 

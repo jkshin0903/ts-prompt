@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import re
 from pathlib import Path
-from typing import Iterable
+from typing import Iterable, Tuple
 
 try:
     import pandas as pd
@@ -12,77 +11,118 @@ except ImportError as exc:  # pragma: no cover
     ) from exc
 
 
-def find_dataset_files(dataset_dir: Path) -> Iterable[Path]:
-    """Yield CSV files matching the expected Binance naming convention.
-
-    Expected file name pattern: "Binance_{SYMBOL}_d.csv"
+def find_csv_files(dataset_dir: Path) -> Iterable[Tuple[Path, Path]]:
+    """Find all CSV files in dataset directory and its subdirectories.
+    
+    Yields tuples of (csv_path, relative_path_from_dataset_dir).
+    
+    Args:
+        dataset_dir: Base dataset directory (e.g., project_root / "dataset")
+    
+    Yields:
+        Tuple of (absolute_csv_path, relative_path_from_dataset_dir)
     """
-    pattern = re.compile(r"^Binance_(?P<symbol>.+?)_d\.csv$")
-    for path in sorted(dataset_dir.glob("Binance_*_d.csv")):
-        if pattern.match(path.name):
-            yield path
+    if not dataset_dir.exists():
+        return
+    
+    for csv_path in dataset_dir.rglob("*.csv"):
+        relative = csv_path.relative_to(dataset_dir)
+        yield csv_path, relative
 
 
-def extract_symbol_from_filename(filename: str) -> str:
-    match = re.match(r"^Binance_(?P<symbol>.+?)_d\.csv$", filename)
-    if not match:
-        raise ValueError(f"Unexpected filename format: {filename}")
-    return match.group("symbol")
+def detect_date_column(df: "pd.DataFrame") -> str | None:
+    """Detect date column in dataframe (case-insensitive).
+    
+    Returns:
+        Column name if found, None otherwise
+    """
+    for col in df.columns:
+        if col.lower() in ["date", "time", "timestamp"]:
+            return col
+    return None
 
 
-def split_dataframe_chronologically(df: "pd.DataFrame", train_ratio: float) -> tuple["pd.DataFrame", "pd.DataFrame"]:
-    if not 0.0 < train_ratio < 1.0:
-        raise ValueError("train_ratio must be between 0 and 1")
-
-    n_rows = len(df)
-    if n_rows == 0:
-        return df.copy(), df.copy()
-
-    split_index = int(n_rows * train_ratio)
-    # Ensure at least one row in test set when there are 2+ rows
-    if split_index >= n_rows and n_rows > 1:
-        split_index = n_rows - 1
-
-    train_df = df.iloc[:split_index].copy()
-    test_df = df.iloc[split_index:].copy()
-    return train_df, test_df
+def read_csv_with_auto_header(csv_path: Path) -> "pd.DataFrame":
+    """Read CSV file, automatically detecting header row.
+    
+    Tries header=0 first, then header=1 if first row looks like data.
+    
+    Args:
+        csv_path: Path to CSV file
+    
+    Returns:
+        DataFrame with properly parsed data
+    """
+    # Try header=0 first (standard format)
+    try:
+        df = pd.read_csv(csv_path, header=0)
+        # Check if first row looks like data (contains numeric values)
+        if len(df) > 0:
+            first_row = df.iloc[0]
+            # If first row contains mostly numeric values, it's likely data, not header
+            numeric_count = sum(
+                1 for val in first_row 
+                if pd.api.types.is_numeric_dtype(type(val)) 
+                or (isinstance(val, str) and val.replace(".", "").replace("-", "").replace("/", "").isdigit())
+            )
+            if numeric_count < len(first_row) * 0.5:
+                # Less than half are numeric, likely header row
+                return df
+    except Exception:
+        pass
+    
+    # Try header=1 (some datasets have metadata in first row)
+    try:
+        df = pd.read_csv(csv_path, header=1)
+        return df
+    except Exception:
+        # Fall back to header=0
+        return pd.read_csv(csv_path, header=0)
 
 
 def main() -> None:
+    """Process CSV files in dataset directory: sort by date and optionally clean data.
+    
+    This script processes all CSV files in the dataset directory, sorts them chronologically,
+    and optionally performs data cleaning. No train/test split is performed.
+    """
     project_root = Path(__file__).resolve().parent.parent
-    dataset_dir = project_root / "dataset" / "original"
+    dataset_dir = project_root / "dataset"
 
     if not dataset_dir.exists():
         raise SystemExit(f"Dataset directory not found: {dataset_dir}")
 
-    train_ratio = 0.7
-
-    # Ensure output directories exist
-    train_dir = project_root / "dataset" / "train"
-    test_dir = project_root / "dataset" / "test"
-    train_dir.mkdir(parents=True, exist_ok=True)
-    test_dir.mkdir(parents=True, exist_ok=True)
-
-    for csv_path in find_dataset_files(dataset_dir):
-        symbol = extract_symbol_from_filename(csv_path.name)
-
-        # Use the second row (index 1) as header; data begins from the third row
-        df = pd.read_csv(csv_path, header=1)
-        # Ensure chronological order (oldest -> newest) before splitting
-        if "Date" in df.columns:
-            df = df.sort_values(
-                "Date", key=lambda s: pd.to_datetime(s, errors="coerce"), ascending=True
-            ).reset_index(drop=True)
-
-        train_df, test_df = split_dataframe_chronologically(df, train_ratio)
-
-        train_out = train_dir / f"{symbol}.csv"
-        test_out = test_dir / f"{symbol}.csv"
-
-        train_df.to_csv(train_out, index=False)
-        test_df.to_csv(test_out, index=False)
-
-        print(f"Saved: {train_out.name} ({len(train_df)} rows), {test_out.name} ({len(test_df)} rows)")
+    processed_count = 0
+    for csv_path, relative_path in find_csv_files(dataset_dir):
+        try:
+            # Read CSV with auto header detection
+            df = read_csv_with_auto_header(csv_path)
+            
+            if len(df) == 0:
+                print(f"Skipping {relative_path}: empty file")
+                continue
+            
+            # Detect and sort by date column
+            date_col = detect_date_column(df)
+            if date_col:
+                df = df.sort_values(
+                    date_col, key=lambda s: pd.to_datetime(s, errors="coerce"), ascending=True
+                ).reset_index(drop=True)
+                print(f"Processed: {relative_path} ({len(df)} rows, sorted by {date_col})")
+            else:
+                # If no date column, assume data is already in chronological order
+                print(f"Processed: {relative_path} ({len(df)} rows, no date column found)")
+            
+            processed_count += 1
+            
+        except Exception as exc:
+            print(f"Error processing {relative_path}: {exc}")
+            continue
+    
+    if processed_count == 0:
+        print("No CSV files found to process")
+    else:
+        print(f"\nProcessed {processed_count} dataset(s)")
 
 
 if __name__ == "__main__":
